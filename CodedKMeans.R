@@ -60,11 +60,20 @@ getPossibleWorldOfUGraph <- function(uGraph, randomNum) {
 # Calculate probability of a random possible world (subgraph)
 calculateProbabilityOfPW <- function(edgeListInitial, edgeListPW) {
   term <- 1
-  for(i in 1:length(edgeListPW)) {
-    term <- ifelse(edgeListPW[i] %in% edgeListInitial, 
+  # for(i in 1:length(edgeListPW)) {
+  #   term <- ifelse(edgeListPW[i] %in% edgeListInitial, 
+  #                  edgeListInitial[i]$Probabilities, 
+  #                  1 - edgeListInitial[i]$Probabilities
+  #   )
+  #   term <- term*term
+  # }
+  for(i in 1:length(edgeListInitial)) {
+    term <- ifelse(edgeListInitial[i] %in% edgeListInitial, 
                    edgeListInitial[i]$Probabilities, 
                    1 - edgeListInitial[i]$Probabilities
     )
+    
+    term <- as.numeric(term)
     term <- term*term
   }
   term
@@ -77,6 +86,9 @@ calculateObjFunctionFs <- function(T_i, K, initialUGraph, possibleWorld) {
   productSum <- 0;
   
   for(k in 1:K) {
+    # print(norm_C_k(k, T_i));
+    # print(H_ij_k(k, T_i, gorder(initialUGraph)));
+    
     productSum <- productSum + norm_C_k(k, T_i)*H_ij_k(k, T_i, gorder(initialUGraph));
   }
   
@@ -122,24 +134,25 @@ H_ij_k <- function(row_identifier, T_i, max_elements) {
 }
 # END OF AUXILIARY FUNCTIONS
 
-probGraphDataDF <- read.csv('toy_example.txt', sep = "\t", header=FALSE);
+# probGraphDataDF <- read.csv('toy_example.txt', sep = "\t", header=FALSE);
+probGraphDataDF <- read.csv('nature04670-s7.csv', sep = ",", header=FALSE);
 colnames(probGraphDataDF)[3] <- c("Probabilities");
 (probGraphDataDF);
 
 # Create graph from data frame
 pbGraph <- graph.data.frame(probGraphDataDF, directed = FALSE);
 
-plot(pbGraph, layout = layout_nicely(pbGraph),
-     vertex.color = "grey",
-     vertex.label = V(pbGraph)$names,
-     edge.label = E(pbGraph)$Probabilities,
-     edge.label.font = 1,
-     vertex.label.font = 33,
-     vertex.size = 15,
-     edge.arrow.size = 0.1,
-     edge.lty = 'solid',
-     edge.width = 1,
-     edge.curved = FALSE);
+# plot(pbGraph, layout = layout_nicely(pbGraph),
+#      vertex.color = "grey",
+#      vertex.label = V(pbGraph)$names,
+#      edge.label = E(pbGraph)$Probabilities,
+#      edge.label.font = 1,
+#      vertex.label.font = 33,
+#      vertex.size = 15,
+#      edge.arrow.size = 0.1,
+#      edge.lty = 'solid',
+#      edge.width = 1,
+#      edge.curved = FALSE);
 
 # Declare the number of clusters to return
 K <- 6;
@@ -163,10 +176,17 @@ for(u in 1:length(pwGraphFragments$membership)) {
   T_i[[row_identifier, column_identifier]] <- append(T_i[[row_identifier, column_identifier]], c(names(pwGraphFragments$membership)[u]))
 }
 
-# F_value <- calculateObjFunctionFs(T_i, K, pbGraph, possibleWorldGraph);
+F_value_next <- 0;
+F_value_prev <- calculateObjFunctionFs(T_i, K, pbGraph, possibleWorldGraph);
 
+tolerance <- 0.1;
 iterator <- 0;
-while(iterator < max_iterations) {
+
+finalClusterConfiguration <- vector(mode = "list", length = K);
+
+while( ((F_value_prev - F_value_next) > tolerance) && (iterator < max_iterations)) {
+  F_value_next <- F_value_prev;
+  
   # STAGE 1
   keepTiMatrices <- list(); # list of T_i matrices
   keepTiMatricesCoded <- list(); # list of T_i matrices coded
@@ -202,7 +222,7 @@ while(iterator < max_iterations) {
   }
   
   # STAGE 2
-  finalClusterConfiguration <- vector(mode = "list", length = K);
+  F_value_prev <- 0.0;
   
   for(x in 1:length(V(pbGraph))) {
     u <- names(V(pbGraph))[x];
@@ -223,15 +243,16 @@ while(iterator < max_iterations) {
       
       codelengths_list[[cluster_identifier_of_u]] <- codelengths_list[[cluster_identifier_of_u]] + sum_codeLength_of_u;
       
-      # F_value <- calculateObjFunctionFs(T_i_mat, K, pbGraph, possbileWorldList[[i]]);
-      # print(F_value)
+      F_value_prev <- F_value_prev + calculateObjFunctionFs(T_i_mat, K, pbGraph, possbileWorldList[[i]]);
     }
     
     # Assign u to cluster where code length sum is minimized
     index <- which.min(codelengths_list);
+    
     finalClusterConfiguration[[index]] <- append(finalClusterConfiguration[[index]], u);
   }
-
+  print(F_value_prev)
+  
   iterator <- iterator + 1;
 }
 
