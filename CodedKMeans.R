@@ -258,3 +258,9 @@ while( ((F_value_prev - F_value_next) > tolerance) && (iterator < max_iterations
 
 print("Final Cluster Configuration:");
 print(finalClusterConfiguration)
+
+capture.output(
+  cat(format(finalClusterConfiguration), sep = "\n"), 
+  file = paste("CConfiguration", toString(K), format(Sys.time(), "%d-%b-%Y %H.%M"), ".txt", sep = "_"),
+  append = FALSE
+)
